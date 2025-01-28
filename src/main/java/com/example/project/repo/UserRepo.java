@@ -1,4 +1,4 @@
 package com.example.project.repo;
 
-public class SalesManRepo {
+public class UserRepo {
 }
