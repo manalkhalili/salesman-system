@@ -5,6 +5,7 @@ import com.example.project.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,7 +22,15 @@ public class UserController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody UserInfo user){
+    public ResponseEntity<?> register(@RequestBody UserInfo user, BindingResult bindingResult){
+        if (bindingResult.hasErrors()) {
+            return ResponseEntity.badRequest().body(bindingResult.getAllErrors());
+        }
+
+        if (user.getRole() == null) {
+            user.setRole(UserInfo.Role.SALESMAN);  // Set default role if not provided
+        }
+
         // Validate email format
         if(!isValidEmail(user.getEmail())){
             return ResponseEntity.badRequest().body("invalid email format");
@@ -71,6 +80,18 @@ public class UserController {
             List<UserInfo> users = userService.getAllUsers();
             return ResponseEntity.ok(users);
         } catch (Exception e) {
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+    @GetMapping("/SalesMan")
+    public ResponseEntity<List<UserInfo>> getSalesmen() {
+        try {
+            List<UserInfo> users = userService.getSalesmen();
+            return ResponseEntity.ok(users);
+
+        }
+        catch(Exception e){
             return ResponseEntity.badRequest().body(null);
         }
     }
