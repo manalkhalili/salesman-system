@@ -1,6 +1,7 @@
 package com.example.project.Controller;
 
 import com.example.project.entity.UserInfo;
+import com.example.project.service.EmailService;
 import com.example.project.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -8,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -15,10 +17,14 @@ import java.util.Map;
 @RequestMapping("/users")
 public class UserController {
     private final UserService userService;
+    private final EmailService emailService;
+    private final Map<String, String> verificationCodes = new HashMap<>(); // تخزين الأكواد مؤقتًا
 
     @Autowired
-    public UserController(UserService userService){
+    public UserController(UserService userService,EmailService emailService) {
         this.userService = userService;
+        this.emailService = emailService;
+
     }
 
     @PostMapping("/register")
