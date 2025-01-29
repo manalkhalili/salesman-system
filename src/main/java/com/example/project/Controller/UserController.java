@@ -96,6 +96,19 @@ public class UserController {
         }
     }
 
+
+    @GetMapping("/Accountent")
+    public ResponseEntity<List<UserInfo>> getAccountent() {
+        try{
+            List<UserInfo>users=userService.getAccountants();
+            return ResponseEntity.ok(users);
+        }
+        catch(Exception e){
+            return ResponseEntity.badRequest().body(null);
+        }
+    }
+
+
     @GetMapping("/search")
     public ResponseEntity<List<UserInfo>> getUsersByName(@RequestParam String name) {
         try {
