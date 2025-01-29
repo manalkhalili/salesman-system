@@ -60,6 +60,10 @@ public class UserService {
         return userRepo.save(userInfo);
     }
 
+    public UserInfo getUserByPhoneNumber(String phoneNumber) {
+        return userRepo.findByPhoneNumber(phoneNumber);
+    }
+
 
     public void deleteUser(int id) {
         userRepo.deleteById(id);

@@ -16,5 +16,6 @@ public interface UserRepo extends JpaRepository<UserInfo, Integer> {
 
     List<UserInfo> findByRole(UserInfo.Role role);
 
-   ;
+    UserInfo findByPhoneNumber(String phoneNumber);
+
 }
