@@ -54,6 +54,9 @@ public class UserInfo {
         SALESMAN,
         ACCOUNTANT
     }
+    @Column(nullable = false)
+    private boolean verified = false;
+
 
     public UserInfo(){}
     public UserInfo(String name, String email, String address, String phoneNumber, Role role, int nationalId, String password) {
@@ -64,6 +67,7 @@ public class UserInfo {
         this.role = role;
         this.nationalId = nationalId;
         this.password = password;
+        this.verified=false;
     }
 
 
@@ -78,6 +82,13 @@ public class UserInfo {
     }
     public void setName(String name) {
         this.name = name;
+    }
+    public boolean isVerified() {
+        return verified;
+    }
+
+    public void setVerified(boolean verified) {
+        this.verified = verified;
     }
     public String getEmail() {
         return email;

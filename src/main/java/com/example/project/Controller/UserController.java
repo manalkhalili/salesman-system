@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
+import utils.VerificationCodeUtil;
 
 import java.util.HashMap;
 import java.util.List;
@@ -28,7 +29,7 @@ public class UserController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody UserInfo user, BindingResult bindingResult){
+    public ResponseEntity<?> register(@RequestBody UserInfo user, BindingResult bindingResult) {
         if (bindingResult.hasErrors()) {
             return ResponseEntity.badRequest().body(bindingResult.getAllErrors());
         }
@@ -38,47 +39,64 @@ public class UserController {
         }
 
         // Validate email format
-        if(!isValidEmail(user.getEmail())){
-            return ResponseEntity.badRequest().body("invalid email format");
+        if (!isValidEmail(user.getEmail())) {
+            return ResponseEntity.badRequest().body("Invalid email format.");
         }
 
+        // Validate password
         if (!isValidPassword(user.getPassword())) {
             return ResponseEntity.badRequest().body("Password must contain at least 10 characters, including 1 uppercase letter, 1 lowercase letter, and 1 special character.");
         }
 
-
-        // Validate phone number (must be exactly 10 digits)
+        // Validate phone number
         if (!isValidPhoneNumber(user.getPhoneNumber())) {
             return ResponseEntity.badRequest().body("Phone number must be exactly 10 digits.");
         }
 
         try {
+            user.setVerified(false);
             userService.registerUser(user);
-            return ResponseEntity.ok("User registered successfully.");
+
+            // **🔹 إرسال كود التحقق بالبريد الإلكتروني**
+            String verificationCode = VerificationCodeUtil.generateCode();
+            verificationCodes.put(user.getEmail(), verificationCode); // حفظ الكود مؤقتًا
+            emailService.sendVerificationEmail(user.getEmail(), verificationCode);
+
+            return ResponseEntity.ok("User registered successfully. Please verify your email.");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
-
-
     }
 
     @PostMapping("/signin")
-    public ResponseEntity<?> signinUser(@RequestBody UserInfo loginRequest ){
-        try{
+    public ResponseEntity<?> signinUser(@RequestBody UserInfo loginRequest) {
+        try {
             UserInfo user = userService.signInUser(loginRequest.getEmail(), loginRequest.getPassword());
-            if(user != null){
-                return ResponseEntity.ok("User signed in successfully.");
-            }
-            else {
+
+            if (user == null) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid email or password.");
-
             }
 
-        }
-        catch(Exception e){
+            if (!user.isVerified()) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Account not verified. Please check your email.");
+            }
+
+            return ResponseEntity.ok("User signed in successfully.");
+        } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
+    @PostMapping("/verify")
+    public ResponseEntity<?> verifyUser(@RequestParam String email, @RequestParam String code) {
+        if (verificationCodes.containsKey(email) && verificationCodes.get(email).equals(code)) {
+            userService.verifyUser(email);
+            verificationCodes.remove(email);
+            return ResponseEntity.ok("Email verified successfully. You can now log in.");
+        }
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid verification code.");
+    }
+
 
     @GetMapping("/")
     public ResponseEntity<List<UserInfo>> getAllUsers() {
@@ -150,18 +168,7 @@ public class UserController {
             return ResponseEntity.badRequest().body(null);
         }
     }
-    @PostMapping("/verify-email")
-    public ResponseEntity<?> verifyEmail(@RequestBody Map<String, String> request) {
-        String email = request.get("email");
-        boolean exists = userService.checkIfEmailExists(email);
 
-        if (exists) {
-
-            return ResponseEntity.ok().build();
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Email not found");
-        }
-    }
 
     private boolean isValidEmail(String email) {
         String emailRegex = "^[A-Za-z0-9+_.-]+@(.+)$";

@@ -76,5 +76,13 @@ public class UserService {
     public List<UserInfo> getAccountants() {
         return userRepo.findByRole(UserInfo.Role.ACCOUNTANT);
     }
+    public void verifyUser(String email) {
+        UserInfo user = userRepo.findByEmail(email);
+        if (user != null) {
+            user.setVerified(true);  // ✅ **تحديث حالة الحساب إلى "مفعل"**
+            userRepo.save(user);
+        }
+    }
+
 
 }
