@@ -4,7 +4,9 @@ import com.example.project.entity.UserInfo;
 import com.example.project.repo.UserRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import utils.VerificationCodeUtil;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -12,6 +14,8 @@ import java.util.Optional;
 public class UserService {
 
     private final UserRepo userRepo;
+    @Autowired
+    private EmailService emailService;
     @Autowired
     public UserService(UserRepo userRepo){
         this.userRepo = userRepo;
@@ -82,6 +86,19 @@ public class UserService {
             user.setVerified(true);  // ✅ **تحديث حالة الحساب إلى "مفعل"**
             userRepo.save(user);
         }
+    }
+    public void sendVerificationEmail(String email) {
+        String verificationCode = VerificationCodeUtil.generateCode();  // توليد كود التحقق
+        LocalDateTime expirationTime = LocalDateTime.now().plusMinutes(5);  // تعيين فترة صلاحية الكود (5 دقائق)
+
+        UserInfo user = userRepo.findByEmail(email);  // البحث عن المستخدم بالبريد الإلكتروني
+        if (user != null) {
+            user.setVerificationCode(verificationCode);  // تخزين الكود في قاعدة البيانات
+            user.setVerificationCodeExpiration(expirationTime);  // تخزين تاريخ انتهاء صلاحية الكود
+            userRepo.save(user);  // حفظ التغييرات في قاعدة البيانات
+        }
+
+        emailService.sendVerificationEmail(email, verificationCode);  // إرسال الكود عبر البريد الإلكتروني
     }
 
 

@@ -1,6 +1,7 @@
 package com.example.project.Controller;
 
 import com.example.project.entity.UserInfo;
+import com.example.project.repo.UserRepo;
 import com.example.project.service.EmailService;
 import com.example.project.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,6 +11,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import utils.VerificationCodeUtil;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,14 +20,16 @@ import java.util.Map;
 @RequestMapping("/users")
 public class UserController {
     private final UserService userService;
+    @Autowired
+    private UserRepo userRepo;
     private final EmailService emailService;
     private final Map<String, String> verificationCodes = new HashMap<>(); // تخزين الأكواد مؤقتًا
 
     @Autowired
-    public UserController(UserService userService,EmailService emailService) {
+    public UserController(UserService userService,EmailService emailService,UserRepo userRepo) {
         this.userService = userService;
         this.emailService = emailService;
-
+        this.userRepo = userRepo;
     }
 
     @PostMapping("/register")
@@ -67,6 +71,29 @@ public class UserController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+    @PostMapping("/verify")
+    public ResponseEntity<?> verifyUser(@RequestParam String email, @RequestParam String code) {
+        UserInfo user = userRepo.findByEmail(email);
+
+        if (user != null) {
+            if (user.getVerificationCode().equals(code)) {
+                if (user.getVerificationCodeExpiration().isAfter(LocalDateTime.now())) {
+                    user.setVerified(true);
+                    user.setVerificationCode(null);
+                    user.setVerificationCodeExpiration(null);
+                    userRepo.save(user);
+
+                    return ResponseEntity.ok("Email verified successfully. You can now log in.");
+                } else {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Verification code has expired.");
+                }
+            } else {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid verification code.");
+            }
+        }
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found.");
+    }
 
     @PostMapping("/signin")
     public ResponseEntity<?> signinUser(@RequestBody UserInfo loginRequest) {
@@ -85,16 +112,6 @@ public class UserController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
-    }
-
-    @PostMapping("/verify")
-    public ResponseEntity<?> verifyUser(@RequestParam String email, @RequestParam String code) {
-        if (verificationCodes.containsKey(email) && verificationCodes.get(email).equals(code)) {
-            userService.verifyUser(email);
-            verificationCodes.remove(email);
-            return ResponseEntity.ok("Email verified successfully. You can now log in.");
-        }
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid verification code.");
     }
 
 

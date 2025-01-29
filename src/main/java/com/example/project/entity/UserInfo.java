@@ -57,6 +57,12 @@ public class UserInfo {
     @Column(nullable = false)
     private boolean verified = false;
 
+    @Column
+    private String verificationCode;  // لتخزين كود التحقق
+
+    @Column
+    private LocalDateTime verificationCodeExpiration;  // لتخزين تاريخ انتهاء صلاحية الكود
+
 
     public UserInfo(){}
     public UserInfo(String name, String email, String address, String phoneNumber, Role role, int nationalId, String password) {
@@ -125,6 +131,21 @@ public class UserInfo {
     }
     public void setPassword(String password) {
         this.password = password;
+    }
+    public String getVerificationCode() {
+        return verificationCode;
+    }
+
+    public void setVerificationCode(String verificationCode) {
+        this.verificationCode = verificationCode;
+    }
+
+    public LocalDateTime getVerificationCodeExpiration() {
+        return verificationCodeExpiration;
+    }
+
+    public void setVerificationCodeExpiration(LocalDateTime verificationCodeExpiration) {
+        this.verificationCodeExpiration = verificationCodeExpiration;
     }
 
 
