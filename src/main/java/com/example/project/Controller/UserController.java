@@ -38,32 +38,36 @@ public class UserController {
             return ResponseEntity.badRequest().body(bindingResult.getAllErrors());
         }
 
+        // تعيين دور المستخدم الافتراضي
         if (user.getRole() == null) {
-            user.setRole(UserInfo.Role.SALESMAN);  // Set default role if not provided
+            user.setRole(UserInfo.Role.SALESMAN);
         }
 
-        // Validate email format
+        // التحقق من صحة البريد الإلكتروني وكلمة المرور ورقم الهاتف
         if (!isValidEmail(user.getEmail())) {
             return ResponseEntity.badRequest().body("Invalid email format.");
         }
 
-        // Validate password
         if (!isValidPassword(user.getPassword())) {
             return ResponseEntity.badRequest().body("Password must contain at least 10 characters, including 1 uppercase letter, 1 lowercase letter, and 1 special character.");
         }
 
-        // Validate phone number
         if (!isValidPhoneNumber(user.getPhoneNumber())) {
             return ResponseEntity.badRequest().body("Phone number must be exactly 10 digits.");
         }
 
         try {
-            user.setVerified(false);
-            userService.registerUser(user);
-
-            // **🔹 إرسال كود التحقق بالبريد الإلكتروني**
+            // توليد كود التحقق وتخزينه في قاعدة البيانات
             String verificationCode = VerificationCodeUtil.generateCode();
-            verificationCodes.put(user.getEmail(), verificationCode); // حفظ الكود مؤقتًا
+            LocalDateTime expirationTime = LocalDateTime.now().plusMinutes(5); // صلاحية 5 دقائق
+
+            user.setVerificationCode(verificationCode);
+            user.setVerificationCodeExpiration(expirationTime);
+            user.setVerified(false); // المستخدم غير مفعّل حتى يتم التحقق منه
+
+            userRepo.save(user); // حفظ المستخدم في قاعدة البيانات
+
+            // إرسال كود التحقق عبر البريد الإلكتروني
             emailService.sendVerificationEmail(user.getEmail(), verificationCode);
 
             return ResponseEntity.ok("User registered successfully. Please verify your email.");
@@ -71,17 +75,21 @@ public class UserController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
     @PostMapping("/verify")
     public ResponseEntity<?> verifyUser(@RequestParam String email, @RequestParam String code) {
         UserInfo user = userRepo.findByEmail(email);
 
         if (user != null) {
-            if (user.getVerificationCode().equals(code)) {
+            // التحقق من صحة كود التحقق
+            if (user.getVerificationCode() != null && user.getVerificationCode().equals(code)) {
+                // التحقق مما إذا كان الكود قد انتهت صلاحيته
                 if (user.getVerificationCodeExpiration().isAfter(LocalDateTime.now())) {
-                    user.setVerified(true);
-                    user.setVerificationCode(null);
-                    user.setVerificationCodeExpiration(null);
-                    userRepo.save(user);
+                    user.setVerified(true); // تحديث الحالة إلى مفعّل
+                    user.setVerificationCode(null); // مسح الكود بعد التحقق
+                    user.setVerificationCodeExpiration(null); // مسح تاريخ انتهاء الصلاحية
+
+                    userRepo.save(user); // حفظ التغييرات في قاعدة البيانات
 
                     return ResponseEntity.ok("Email verified successfully. You can now log in.");
                 } else {
@@ -94,6 +102,7 @@ public class UserController {
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found.");
     }
+
 
     @PostMapping("/signin")
     public ResponseEntity<?> signinUser(@RequestBody UserInfo loginRequest) {
