@@ -23,7 +23,6 @@ public class UserController {
     @Autowired
     private UserRepo userRepo;
     private final EmailService emailService;
-    private final Map<String, String> verificationCodes = new HashMap<>(); // تخزين الأكواد مؤقتًا
 
     @Autowired
     public UserController(UserService userService,EmailService emailService,UserRepo userRepo) {
@@ -38,12 +37,10 @@ public class UserController {
             return ResponseEntity.badRequest().body(bindingResult.getAllErrors());
         }
 
-        // تعيين دور المستخدم الافتراضي
         if (user.getRole() == null) {
             user.setRole(UserInfo.Role.SALESMAN);
         }
 
-        // التحقق من صحة البريد الإلكتروني وكلمة المرور ورقم الهاتف
         if (!isValidEmail(user.getEmail())) {
             return ResponseEntity.badRequest().body("Invalid email format.");
         }
@@ -57,17 +54,15 @@ public class UserController {
         }
 
         try {
-            // توليد كود التحقق وتخزينه في قاعدة البيانات
             String verificationCode = VerificationCodeUtil.generateCode();
-            LocalDateTime expirationTime = LocalDateTime.now().plusMinutes(5); // صلاحية 5 دقائق
+            LocalDateTime expirationTime = LocalDateTime.now().plusMinutes(5);
 
             user.setVerificationCode(verificationCode);
             user.setVerificationCodeExpiration(expirationTime);
-            user.setVerified(false); // المستخدم غير مفعّل حتى يتم التحقق منه
+            user.setVerified(false);
 
-            userRepo.save(user); // حفظ المستخدم في قاعدة البيانات
+            userRepo.save(user);
 
-            // إرسال كود التحقق عبر البريد الإلكتروني
             emailService.sendVerificationEmail(user.getEmail(), verificationCode);
 
             return ResponseEntity.ok("User registered successfully. Please verify your email.");
