@@ -7,7 +7,6 @@ import com.example.project.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import utils.VerificationCodeUtil;
@@ -24,8 +23,6 @@ public class UserController {
     @Autowired
     private UserRepo userRepo;
     private final EmailService emailService;
-    @Autowired
-    private PasswordEncoder passwordEncoder;
 
     @Autowired
     public UserController(UserService userService,EmailService emailService,UserRepo userRepo) {
@@ -79,15 +76,12 @@ public class UserController {
         UserInfo user = userRepo.findByEmail(email);
 
         if (user != null) {
-            // التحقق من صحة كود التحقق
             if (user.getVerificationCode() != null && user.getVerificationCode().equals(code)) {
-                // التحقق مما إذا كان الكود قد انتهت صلاحيته
                 if (user.getVerificationCodeExpiration().isAfter(LocalDateTime.now())) {
-                    user.setVerified(true); // تحديث الحالة إلى مفعّل
-                    user.setVerificationCode(null); // مسح الكود بعد التحقق
-                    user.setVerificationCodeExpiration(null); // مسح تاريخ انتهاء الصلاحية
-
-                    userRepo.save(user); // حفظ التغييرات في قاعدة البيانات
+                    user.setVerified(true);
+                    user.setVerificationCode(null);
+                    user.setVerificationCodeExpiration(null);
+                    userRepo.save(user);
 
                     return ResponseEntity.ok("Email verified successfully. You can now log in.");
                 } else {
@@ -120,15 +114,22 @@ public class UserController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
-
-
-    @PostMapping("/fprgot-password")
-    public ResponseEntity<?> fprgotPassword(@RequestParam String email) {
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestParam String email) {
+        String resetCode = VerificationCodeUtil.generateCode();
+        LocalDateTime resetCodeExpiration = LocalDateTime.now().plusMinutes(5);
         try {
-            userService.sendPasswordResetCode(email);
+            UserInfo user = userRepo.findByEmail(email);
+            if (user == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found.");
+            }
+            user.setResetCode(resetCode);
+            user.setResetCodeExpiration(resetCodeExpiration);
+            user.setResetCodeVerified(false);  // Initially set to false
+            userRepo.save(user);
+            emailService.sendVerificationEmail(email, resetCode);
             return ResponseEntity.ok("Password reset code sent. Please check your email.");
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
@@ -136,18 +137,47 @@ public class UserController {
     @PostMapping("/verify-reset-code")
     public ResponseEntity<?> verifyResetCode(@RequestParam String email, @RequestParam String code) {
         UserInfo user = userRepo.findByEmail(email);
-        if(user==null) {
+        if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found.");
         }
-        if(user.getResetCode()==null  ||  !user.getResetCode().equals(code)) {
+        if (user.getResetCode() == null || !user.getResetCode().equals(code)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid reset code.");
         }
         if (user.getResetCodeExpiration().isBefore(LocalDateTime.now())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Reset code expired.");
         }
-        return ResponseEntity.ok("Reset code verified successfully You can now reset your password");
 
+        // Set the resetCodeVerified to true if code is valid
+        user.setResetCodeVerified(true);
+        userRepo.save(user);
+
+        return ResponseEntity.ok("Reset code verified successfully. You can now reset your password.");
     }
+
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestParam String email, @RequestParam String newPassword) {
+        UserInfo user = userRepo.findByEmail(email);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found.");
+        }
+
+        // Ensure that the reset code has been verified
+        if (!user.isResetCodeVerified()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Reset code not verified.");
+        }
+
+        // Update the password
+        user.setPassword(newPassword);
+        user.setResetCode(null);
+        user.setResetCodeExpiration(null);
+        user.setResetCodeVerified(false);  // Reset verification after password change
+        userRepo.save(user);
+
+        return ResponseEntity.ok("Password reset successfully.");
+    }
+
+
 
 
     @GetMapping("/")

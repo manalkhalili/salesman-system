@@ -57,6 +57,8 @@ public class UserInfo {
     @Column(nullable = false)
     private boolean verified = false;
 
+    @Column(nullable = false)
+    private boolean resetCodeVerified = false;
     @Column
     private String verificationCode;  // لتخزين كود التحقق
 
@@ -78,6 +80,7 @@ public class UserInfo {
         this.nationalId = nationalId;
         this.password = password;
         this.verified=false;
+        this.resetCodeVerified = false;
     }
 
 
@@ -95,6 +98,14 @@ public class UserInfo {
     }
     public boolean isVerified() {
         return verified;
+    }
+
+    public boolean isResetCodeVerified() {
+        return resetCodeVerified;
+    }
+
+    public void setResetCodeVerified(boolean resetVerified) {
+        this.resetCodeVerified=resetVerified;
     }
 
     public void setVerified(boolean verified) {
