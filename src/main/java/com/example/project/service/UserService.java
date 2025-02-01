@@ -101,5 +101,14 @@ public class UserService {
         emailService.sendVerificationEmail(email, verificationCode);  // إرسال الكود عبر البريد الإلكتروني
     }
 
-
+    public void sendPasswordResetCode(String email) {
+        UserInfo user = userRepo.findByEmail(email);
+        if(user ==null){
+            throw new RuntimeException("User not found");
+        }
+        String resetCode = VerificationCodeUtil.generateCode();
+        user.setResetCode(resetCode);
+        userRepo.save(user);
+        emailService.sendVerificationEmail(email, "Your Password Reset code is : " + resetCode);
+    }
 }

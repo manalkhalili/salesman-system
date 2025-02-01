@@ -63,7 +63,11 @@ public class UserInfo {
     @Column
     private LocalDateTime verificationCodeExpiration;  // لتخزين تاريخ انتهاء صلاحية الكود
 
+    @Column
+    private String resetCode;
 
+    @Column
+    private LocalDateTime resetCodeExpiration;
     public UserInfo(){}
     public UserInfo(String name, String email, String address, String phoneNumber, Role role, int nationalId, String password) {
         this.name = name;
@@ -148,6 +152,18 @@ public class UserInfo {
         this.verificationCodeExpiration = verificationCodeExpiration;
     }
 
+    public void setResetCode(String resetCode) {
+        this.resetCode = resetCode;
+    }
+    public String getResetCode() {
+        return resetCode;
+    }
+    public LocalDateTime getResetCodeExpiration() {
+        return resetCodeExpiration;
+    }
+    public void setResetCodeExpiration(LocalDateTime resetCodeExpiration) {
+        this.resetCodeExpiration = resetCodeExpiration;
+    }
 
 }
 

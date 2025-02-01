@@ -7,6 +7,7 @@ import com.example.project.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import utils.VerificationCodeUtil;
@@ -23,6 +24,8 @@ public class UserController {
     @Autowired
     private UserRepo userRepo;
     private final EmailService emailService;
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @Autowired
     public UserController(UserService userService,EmailService emailService,UserRepo userRepo) {
@@ -116,6 +119,34 @@ public class UserController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
+
+
+    @PostMapping("/fprgot-password")
+    public ResponseEntity<?> fprgotPassword(@RequestParam String email) {
+        try {
+            userService.sendPasswordResetCode(email);
+            return ResponseEntity.ok("Password reset code sent. Please check your email.");
+        }
+        catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/verify-reset-code")
+    public ResponseEntity<?> verifyResetCode(@RequestParam String email, @RequestParam String code) {
+        UserInfo user = userRepo.findByEmail(email);
+        if(user==null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found.");
+        }
+        if(user.getResetCode()==null  ||  !user.getResetCode().equals(code)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid reset code.");
+        }
+        if (user.getResetCodeExpiration().isBefore(LocalDateTime.now())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Reset code expired.");
+        }
+        return ResponseEntity.ok("Reset code verified successfully You can now reset your password");
+
     }
 
 
